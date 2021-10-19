@@ -8,6 +8,8 @@ import numpy as np
 # from pylab import *
 import matplotlib
 import sys
+import os.path
+from os.path import join as pjoin
 from glob import glob
 from io import StringIO
 import re
@@ -106,6 +108,89 @@ labels = ['Hydrogen','Electron']
 nSpecies = len(labels)
 
 
+
+
+timer = TaskTimer()
+
+ymin = np.inf*np.ones(nSpecies)
+ymax = -np.inf*np.ones(nSpecies)
+
+force_load = True
+
+if os.path.exists(pjoin(folder,'xv_data.npz')) and force_load:
+    timer.task('Read file')
+    xv_data = np.load(pjoin(folder,'xv_data.npz'), allow_pickle=True)
+    # print(xv_data)
+    xI = xv_data['xI']
+    vI = xv_data['vI']
+    xE = xv_data['xE']
+    vE = xv_data['vE']
+    time = xv_data['time']
+    # print(xI[100].shape,vI.shape,time.shape)
+
+
+else:
+    xE = []
+    vE = []
+    xI = []
+    vI = []
+    time = []
+
+
+    for file in timer.iterate(files):
+
+
+        regex = re.compile(r'\d+')
+        time.append([int(x) for x in regex.findall(file)][-1]*dt*wpi)
+        # print(wpe,timeStamp)
+        # exit()
+
+
+        # This method reads files at half the time of np.loadtxt()
+        with open(file, 'rb') as f:
+            f.readline() # Skip first line
+            data = np.array([line.strip().split() for line in f], float)
+        # print(data)
+        for i in range(nSpecies):
+
+            timer.task('Process data')
+
+            ind, = np.where(data[:,0]==i)
+
+            ymin[i] = min(ymin[i], np.percentile(data[ind,3], 1))
+            ymax[i] = max(ymax[i], np.percentile(data[ind,3], 99))
+
+            # axs[i].cla()
+            if i==0:
+                xI.append(data[ind,2]/dl)
+                vI.append(data[ind,3]/cia)
+                # axs[i].scatter(data[ind,2]/dl,data[ind,3]/cia,s=1,marker='.',color='b',alpha=0.6)
+                # axs[i].set_ylabel("$v/C_s$")
+                # axs[i].set_ylim([0.9*ymin[i]/cia, 1.1*ymax[i]/cia])
+            else:
+                xE.append(data[ind,2]/dl)
+                vE.append(data[ind,3]/vthE)
+                # axs[i].scatter(data[ind,2]/dl,data[ind,3]/vthE,s=1,marker='.',color='b',alpha=0.6)
+                # axs[i].set_ylabel("$v/v_{th}$")
+                # axs[i].set_ylim([0.9*ymin[i]/vthE, 1.1*ymax[i]/vthE])
+            # axs[i].set_xlabel("$x/\lambda_D$")
+            # axs[i].set_xlim([0,lx_norm])
+            # axs[i].set_title(labels[i]+" (time = %f"%time+" $t\omega_{pi}$)")
+
+
+    xI = np.array(xI,dtype=object)
+    vI = np.array(vI,dtype=object)
+    xE = np.array(xE,dtype=object)
+    vE = np.array(vE,dtype=object)
+    time = np.array(time,dtype=object)
+
+    # print(xI.shape,vI.shape,time.shape)
+    timer.task('Save data')
+    np.savez_compressed(pjoin(folder,'xv_data.npz'),time = time, xI = xI, vI = vI, xE = xE, vE = vE)
+
+
+
+
 ##### FIG SIZE CALC ############
 figsize = np.array([200,200/1.618]) #Figure size in mm
 dpi = 300                         #Print resolution
@@ -122,50 +207,34 @@ mp.rc('legend', fontsize=14)
 
 fig,axs = plt.subplots(nSpecies,1,figsize=figsize/25.4,dpi=ppi)
 
-timer = TaskTimer()
-
-ymin = np.inf*np.ones(nSpecies)
-ymax = -np.inf*np.ones(nSpecies)
 
 moviewriter = matplotlib.animation.FFMpegWriter(fps=10)
 with moviewriter.saving(fig, pjoin(folder, 'xv.mp4'), 100):
 
-    for file in timer.iterate(files):
+    for t in timer.range(time.shape[0]):
 
-        timer.task('Read file')
-
-        regex = re.compile(r'\d+')
-        timeStamp = [int(x) for x in regex.findall(file)][-1]*dt*wpi
-        print(file)
-        # exit()
-
-
-        # This method reads files at half the time of np.loadtxt()
-        with open(file, 'rb') as f:
-            f.readline() # Skip first line
-            data = np.array([line.strip().split() for line in f], float)
-        # print(data)
         for i in range(nSpecies):
 
             timer.task('Plot particles')
 
-            ind, = np.where(data[:,0]==i)
-
-            ymin[i] = min(ymin[i], np.percentile(data[ind,3], 1))
-            ymax[i] = max(ymax[i], np.percentile(data[ind,3], 99))
-
             axs[i].cla()
+
             if i==0:
-                axs[i].scatter(data[ind,2]/dl,data[ind,3]/cia,s=1,marker='.',color='b',alpha=0.6)
+                ymin[i] = min(ymin[i], np.percentile(vI[t], 1))
+                ymax[i] = max(ymax[i], np.percentile(vI[t], 99))
+                axs[i].scatter(xI[t],vI[t],s=1,marker='.',color='b',alpha=0.6)
                 axs[i].set_ylabel("$v/C_s$")
-                axs[i].set_ylim([0.9*ymin[i]/cia, 1.1*ymax[i]/cia])
+                axs[i].set_ylim([0.9*ymin[i], 1.1*ymax[i]])
             else:
-                axs[i].scatter(data[ind,2]/dl,data[ind,3]/vthE,s=1,marker='.',color='b',alpha=0.6)
+                ymin[i] = min(ymin[i], np.percentile(vE[t], 1))
+                ymax[i] = max(ymax[i], np.percentile(vE[t], 99))
+                axs[i].scatter(xE[t],vE[t],s=1,marker='.',color='b',alpha=0.6)
                 axs[i].set_ylabel("$v/v_{th}$")
-                axs[i].set_ylim([0.9*ymin[i]/vthE, 1.1*ymax[i]/vthE])
+                axs[i].set_ylim([0.9*ymin[i], 1.1*ymax[i]])
+
             axs[i].set_xlabel("$x/\lambda_D$")
             axs[i].set_xlim([0,lx_norm])
-            axs[i].set_title(labels[i]+" (time = %f"%timeStamp+" $t\omega_{pi}$)")
+            axs[i].set_title(labels[i]+" (time = %f"%time[t]+" $t\omega_{pi}$)")
 
         timer.task('Save frame')
 

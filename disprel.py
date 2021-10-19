@@ -24,7 +24,8 @@ parser.add_argument('-per','--periodic', action='store_true', help='Add this if 
 parser.add_argument('-yLoc','--yLocation', default=1, type=int, help='In bounded (in Y) system Choose Y location, Options: e.g. 1 (Any number between 0-Ny)')
 parser.add_argument('-pl','--plot', action='store_true', help='Add this if you want to plot the figure')
 parser.add_argument('-n','--norm', default='omega_pe', type=str, help='Normalizing frequency, Options: omega_pi, omega_pe')
-
+parser.add_argument('-ihg','--inhomogen', action='store_true', help='Add this if the system is inhomogeneous')
+parser.add_argument('-l','--label', default=None, type=str, help='Add additioanl label to plot')
 
 args        = parser.parse_args()
 folder      = args.input
@@ -32,6 +33,8 @@ periodic    = args.periodic
 yLoc        = args.yLocation	#8 # Choose y location
 plot        = args.plot
 norm        = args.norm
+inhomo      = args.inhomogen
+addlabel    = args.label
 
 # Set processed data directory
 folder_base= os.path.basename(os.path.dirname(folder))
@@ -44,7 +47,11 @@ files.sort(key=lambda x: int(pat.findall(x)[-1]))
 # READ TEMPORAL GRID
 vars = parse_xoopic_input(pjoin(folder, '..', 'input.inp'))
 # print(vars['Control'][0]['dt'])
-dt = vars['Control'][0]['dt']
+if vars['Diagnostic'][0]['VarName'] == 'Ex':
+    dumpper = vars['Diagnostic'][0]['n_step']
+else:
+    dumpper = 1
+dt = vars['Control'][0]['dt']*dumpper
 
 n = np.array([int(pat.findall(a)[-1]) for a in files])
 n += 1 # XOOPIC diagnostics is actually off by one
@@ -121,6 +128,7 @@ if plot:
   kb = constants('Boltzmann constant')
   me = constants('electron mass')
   e = constants('elementary charge')
+  c0 = constants('speed of light in vacuum')
 
   mi  = vars['Species'][1]['m'] #40*constants('atomic mass constant')
   nK  = vars['Grid'][0]['J']
@@ -186,27 +194,99 @@ if plot:
   wah = np.sqrt( (wpi**2) * (ka*ka * dli*dli * (Te/Ti))/(1+(ka*ka * dli*dli * (Te/Ti))) )
   wl = np.sqrt( (wpe**2) * (1+me/mi) * (1+(3*ka*ka*dl*dl)/(1+me/mi)) )
   # wea =
-  wb = ka*vb
+  wb = ka*tIbK
 
   kadl = ka*dl
 
-  print(kadl)
-  # beam_density ratio
-  alpha = 1
-  # Coefficients
-  coeff1 = ( 1 + ( 1 / (kadl*kadl) ) )
-  coeff2 = -2*kadl*(vb/dl)*coeff1
-  coeff3 = ( (kadl*kadl) * (1/(dl*dl)) * (vb*vb) * coeff1) - alpha*wpi*wpi
+  # # print(v)
+  print('vb/cia = ',vb/cia)
+  #
+  # exit()
 
-  roots = []
-  for i in range(1,len(kadl)):
-      coeffs = [coeff1[i], coeff2[i], coeff3[i]]
-      root = np.roots(coeffs)
-      roots.append(root)
-  roots = np.array(roots)
+  # print(kadl)
 
-  wbf = np.real(roots[:,0])/wpi
-  wbs = np.real(roots[:,1])/wpi
+  def periodic_dispersion_norm(vb):
+     vb = vb/cia
+     # Coefficients
+     coeff1 = ( 1 + ( 1 / (kadl*kadl) ) )
+     coeff2 = -2 * kadl * vb * coeff1
+     coeff3 = ((kadl*kadl) * (vb*vb) * coeff1) - 1
+     roots = []
+     for i in range(1,len(kadl)):
+         coeffs = [coeff1[i], coeff2[i], coeff3[i]]
+         root = np.roots(coeffs)
+         roots.append(root)
+     roots = np.array(roots)
+     return roots
+
+  def periodic_dispersion(vb):
+      # beam_density ratio
+      alpha = 1
+      # Coefficients
+      coeff1 = ( 1 + ( 1 / (kadl*kadl) ) )
+      coeff2 = -2*kadl*(vb/dl)*coeff1
+      coeff3 = ( (kadl*kadl) * (1/(dl*dl)) * (vb*vb) * coeff1) - alpha*wpi*wpi
+      roots = []
+      for i in range(1,len(kadl)):
+        # coeffs = [coeff1, coeff2[i], coeff3[i]]
+        coeffs = [coeff1[i], coeff2[i], coeff3[i]]
+        root = np.roots(coeffs)
+        roots.append(root)
+      roots = np.array(roots)/wpi
+      return roots
+
+  def bounded_dispersion_inhomo(vb,xi):
+      # Coefficients
+      c = kadl*(vb/cia)
+      vbar = (vb/cia)
+      coeff1 = 4 * xi
+      coeff2 = -16 * c * xi
+      coeff3 = 24*xi*c*c - 4*xi
+      coeff4 = 16*c*xi - 16*xi*c**3
+      coeff5 = (4*xi*c**4) - (4*kadl**4) - (24*xi*c**2)
+      coeff6 = (8*c*kadl**4) + (16*xi*c**3)
+      coeff7 = -(8*c*c*kadl**4) - (4*xi*c**4)
+      coeff8 = 4*(c**3)*(kadl**4)
+      coeff9 = - (c**4) * (kadl**4)
+      roots = []
+      for i in range(1,len(kadl)):
+        # coeffs = [coeff1, coeff2[i], coeff3[i]]
+        coeffs = [coeff1, coeff2[i], coeff3[i], coeff4[i], coeff5[i], coeff6[i], coeff7[i], coeff8[i], coeff9[i]]
+        root = np.roots(coeffs)
+        roots.append(root)
+      roots = np.array(roots)
+      return roots
+
+  if inhomo:
+      xi = -1.0
+      roots = bounded_dispersion_inhomo(vb,xi)
+  else:
+      roots = periodic_dispersion(vb)
+
+  # print(roots[:,0])
+  # print(roots[:,1])
+  # wbf = np.real(roots[:,0])
+  # wbs = np.real(roots[:,1])
+
+  wbs = np.real(roots[:,3:])
+  wbf = []
+  wbs0 = []
+  wbs1 = []
+  wbs2 = []
+
+  for i in range(len(roots[:,0])):
+      wbf.append(np.max([np.real(roots[i,0]),np.real(roots[i,1])]))
+      wbs0.append(np.max([wbs[i,0],wbs[i,1],wbs[i,4]]))
+      # wbs1.append(np.max([wbs[i,1],wbs[i,4]]))
+      wbs2.append(np.min([wbs[i,1],wbs[i,4]]))
+
+  wbs0 = np.array(wbs0)
+  # wbs1 = np.array(wbs1)
+  wbs2 = np.array(wbs2)
+  wbs = np.array([wbs0,wbs2])
+
+  wbf = np.array(wbf)
+
   #omega_pe
 
   if norm == "omega_pi":
@@ -217,39 +297,56 @@ if plot:
     Omega /=wpe
 
   wl /= wpe
+  # print(wl)
   wac /= wpi
   wah /= wpi
   wb /= wpi
   K *= dl
+  # print(wb)
+
+  # Z = np.log(np.abs(F))
+  Z = np.abs(F)
 
 
-  Z = np.log(np.abs(F))
+  # Z = np.imag(F)
+  print(np.max(Z))
+  # Z /= np.max(Z)
+  Z /= 14492.03
+
+  # [8.05648594639641, 8.321326392686734, 9.116097355123907] vb = 0.1
+  # [8.256258928788315, 8.352575352771161, 9.581354281956306] vb = 0.5
   #Z = np.abs(F)
 
   # ==== Figure =============
 
   ##### FIG SIZE CALC ############
-  figsize = np.array([150,150/1.618]) #Figure size in mm
+  figsize = np.array([80,80/1.618]) #Figure size in mm
   dpi = 300                         #Print resolution
   ppi = np.sqrt(1920**2+1200**2)/24 #Screen resolution
 
-  fig,ax = plt.subplots(figsize=figsize/25.4,constrained_layout=True,dpi=ppi)
-  mp.rc('text', usetex=False)
-  mp.rc('font', family='sans-serif', size=12, serif='Computer Modern Roman')
-  mp.rc('axes', titlesize=12)
-  mp.rc('axes', labelsize=12)
-  mp.rc('xtick', labelsize=12)
-  mp.rc('ytick', labelsize=12)
-  mp.rc('legend', fontsize=12)
+  mp.rc('text', usetex=True)
+  mp.rc('font', family='sans-serif', size=10, serif='Computer Modern Roman')
+  mp.rc('axes', titlesize=10)
+  mp.rc('axes', labelsize=10)
+  mp.rc('xtick', labelsize=10)
+  mp.rc('ytick', labelsize=10)
+  mp.rc('legend', fontsize=10)
+  linestyles =['-.', '--', '-', ':']
+  colors = ['y', 'c']
 
+  fig,ax = plt.subplots(figsize=figsize/25.4,constrained_layout=True,dpi=dpi)
   oRange = len(K[:,0]) #for full omega len(K[:,0])
   # oRange = int(oRange/50)
-  print(K[:oRange,:].shape,Omega[:oRange,:].shape,Z[:oRange,:].shape)
+  # print(K[:oRange,:].shape,Omega[:oRange,:].shape,Z[:oRange,:].shape)
   # print(oRange)
   if norm == "omega_pi":
-    oRange = int(oRange/200)
-    plt.pcolor(K[:oRange,:], Omega[:oRange,:], Z[:oRange,:],shading='auto',vmin=np.min(Z[:oRange,:]),vmax=np.max(Z[:oRange,:])) #np.min(Z[:oRange,:])
-    plt.colorbar()
+    if inhomo:
+        oRange = int(oRange/10) #for bounded system in x
+    else:
+        oRange = int(oRange/200) #for periodic system in x
+    plt.pcolor(K[:oRange,:], Omega[:oRange,:], Z[:oRange,:],shading='auto',cmap = 'inferno',vmin=0*np.max(Z[:oRange,:]),vmax=0.02) # 0.05*np.max(Z[:oRange,:])) #np.min(Z[:oRange,:])
+    cbar = plt.colorbar()
+    cbar.set_label('$\zeta$')
   else:
     oRange = int(oRange/50)
     plt.pcolor(K[:oRange,:], Omega[:oRange,:], Z[:oRange,:],shading='auto',vmin=np.min(Z[:oRange,:]),vmax=np.max(Z[:oRange,:]))
@@ -258,20 +355,24 @@ if plot:
     plt.colorbar()
 
   if norm == "omega_pi":
-    plt.plot(kadl[1:], wbf, '--w', label="Fast Beam Mode")
-    plt.plot(kadl[1:], wbs, '--r', label="Slow Beam Mode")
-    # plt.plot(ka, wah, '--r',label="IAW with warm ions")
+    plt.plot(kadl[1:], wbf, color='w', linestyle='-.', lw = 1.5, label='$\\tilde{\omega_{f}}$')
+    for i in range(2):
+        plt.plot(kadl[1:], wbs[i,:], linestyles[i], color = colors[i],lw = 1.0, label='$\\tilde{\omega_{s}}$(%d'%i+')')
+    plt.plot(kadl, wac, color='b', lw = 1.5,label="$\\tilde{\omega_{a}}$")
     # plt.plot(ka, wb, '--w',label="Beam driven waves")
-    leg = ax.legend()
-    ax.set_xlabel('$k \lambda_{D}$')
-    ax.set_ylabel('$\omega/\omega_{pi}$')
+    leg = ax.legend(loc='upper right',framealpha=0.5)
+    ax.set_xlabel('$\\tilde{k}$')
+    ax.set_ylabel('$\\tilde{\omega}$')
+    # ax.set_xlabel('$k \lambda_{D}$')
+    # ax.set_ylabel('$\omega/\omega_{pi}$')
+
   else:
-    plt.plot(ka, wb, '--w', label="langmuir wave")
-    # plt.axhline(y=1.0, color='w', linestyle='--',label='$\omega_{pe}$')
-    leg = ax.legend()
+    plt.plot(kadl, wl, '--w', label="langmuir wave")
+    plt.axhline(y=1.0, color='w', linestyle='--',label='$\omega_{pe}$')
+    leg = ax.legend(loc='upper right')
     ax.set_xlabel('$k~[1/m]$')
     ax.set_ylabel('$\omega/\omega_{pe}$')
 
   ax.set_ylim([0, 2])
-  plt.savefig(pjoin(savedir, norm+'_disprel.png'))
-  # plt.show()
+  plt.savefig(pjoin(savedir, norm+'_'+addlabel+'_disprel.png'),dpi=dpi)
+  plt.show()
