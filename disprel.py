@@ -47,11 +47,11 @@ files.sort(key=lambda x: int(pat.findall(x)[-1]))
 # READ TEMPORAL GRID
 vars = parse_xoopic_input(pjoin(folder, '..', 'input.inp'))
 # print(vars['Control'][0]['dt'])
-if vars['Diagnostic'][0]['VarName'] == 'Ex':
-    dumpper = vars['Diagnostic'][0]['n_step']
+if vars['Region']['Diagnostic'][0]['VarName'] == 'Ex':
+    dumpper = vars['Region']['Diagnostic'][0]['n_step']
 else:
     dumpper = 1
-dt = vars['Control'][0]['dt']*dumpper
+dt = vars['Region']['Control'][0]['dt']*dumpper
 
 n = np.array([int(pat.findall(a)[-1]) for a in files])
 n += 1 # XOOPIC diagnostics is actually off by one
@@ -100,8 +100,8 @@ if plot:
   # dt = vars['timeStep']*vars['save_step'] #t[1]-t[0]
 
   Mt = Nt
-  Mx = vars['Grid'][0]['J'] #len(x)
-  Lx = vars['Grid'][0]['x1f'] - vars['Grid'][0]['x1s']
+  Mx = vars['Region']['Grid'][0]['J'] #len(x)
+  Lx = vars['Region']['Grid'][0]['x1f'] - vars['Region']['Grid'][0]['x1s']
   dx = Lx/Mx #x[1]-x[0]
   # dt = t[1]-t[0]
   # dx = x[1]-x[0]
@@ -130,38 +130,38 @@ if plot:
   e = constants('elementary charge')
   c0 = constants('speed of light in vacuum')
 
-  mi  = vars['Species'][1]['m'] #40*constants('atomic mass constant')
-  nK  = vars['Grid'][0]['J']
+  mi  = vars['Region']['Species'][1]['m'] #40*constants('atomic mass constant')
+  nK  = vars['Region']['Grid'][0]['J']
   gamma_e = 5./3
 
   if 'BeamEmitter' in vars:
-      units_0 = vars['BeamEmitter'][0]['units']
+      units_0 = vars['Region']['BeamEmitter'][0]['units']
       if units_0 == 'MKS':
-          vthE = vars['BeamEmitter'][0]['temperature']
+          vthE = vars['Region']['BeamEmitter'][0]['temperature']
           tEeV   = 0.5*me*(vthE*vthE)/e
           tEK    = tEeV*11604.525
 
-      units_1 = vars['BeamEmitter'][1]['units']
+      units_1 = vars['Region']['BeamEmitter'][1]['units']
       if units_1 == 'MKS':
-          vthI = vars['BeamEmitter'][1]['temperature']
+          vthI = vars['Region']['BeamEmitter'][1]['temperature']
           tIeV   = 0.5*mi*(vthI*vthI)/e
           tIK    = tIeV*11604.525
-          vb  = vars['BeamEmitter'][1]['v1drift']
+          vb  = vars['Region']['BeamEmitter'][1]['v1drift']
           tIbeV   = 0.5*mi*(vb*vb)/e
           tIbK    = tIbeV*11604.525
   if 'Load' in vars:
-      units_0 = vars['Load'][0]['units']
+      units_0 = vars['Region']['Load'][0]['units']
       if units_0 == 'MKS':
-          vthE = vars['Load'][0]['temperature']
+          vthE = vars['Region']['Load'][0]['temperature']
           tEeV   = 0.5*me*(vthE*vthE)/e
           tEK    = tEeV*11604.525
 
-      units_1 = vars['Load'][1]['units']
+      units_1 = vars['Region']['Load'][1]['units']
       if units_1 == 'MKS':
-          vthI = vars['Load'][1]['temperature']
+          vthI = vars['Region']['Load'][1]['temperature']
           tIeV   = 0.5*mi*(vthI*vthI)/e
           tIK    = tIeV*11604.525
-          vb  = vars['Load'][1]['v1drift']
+          vb  = vars['Region']['Load'][1]['v1drift']
           tIbeV   = 0.5*mi*(vb*vb)/e
           tIbK    = tIbeV*11604.525
 
