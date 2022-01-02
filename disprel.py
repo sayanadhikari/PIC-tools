@@ -133,8 +133,9 @@ if plot:
   mi  = vars['Region']['Species'][1]['m'] #40*constants('atomic mass constant')
   nK  = vars['Region']['Grid'][0]['J']
   gamma_e = 5./3
+  # print(vars['Region']['Load'][0]['units'])
 
-  if 'BeamEmitter' in vars:
+  if 'BeamEmitter' in vars['Region']:
       units_0 = vars['Region']['BeamEmitter'][0]['units']
       if units_0 == 'MKS':
           vthE = vars['Region']['BeamEmitter'][0]['temperature']
@@ -149,7 +150,7 @@ if plot:
           vb  = vars['Region']['BeamEmitter'][1]['v1drift']
           tIbeV   = 0.5*mi*(vb*vb)/e
           tIbK    = tIbeV*11604.525
-  if 'Load' in vars:
+  if 'Load' in vars['Region']:
       units_0 = vars['Region']['Load'][0]['units']
       if units_0 == 'MKS':
           vthE = vars['Region']['Load'][0]['temperature']
@@ -267,25 +268,26 @@ if plot:
   # print(roots[:,1])
   # wbf = np.real(roots[:,0])
   # wbs = np.real(roots[:,1])
+  analytic = False
+  if analytic:
+      wbs = np.real(roots[:,3:])
+      wbf = []
+      wbs0 = []
+      wbs1 = []
+      wbs2 = []
 
-  wbs = np.real(roots[:,3:])
-  wbf = []
-  wbs0 = []
-  wbs1 = []
-  wbs2 = []
+      for i in range(len(roots[:,0])):
+          wbf.append(np.max([np.real(roots[i,0]),np.real(roots[i,1])]))
+          wbs0.append(np.max([wbs[i,0],wbs[i,1],wbs[i,4]]))
+          # wbs1.append(np.max([wbs[i,1],wbs[i,4]]))
+          wbs2.append(np.min([wbs[i,1],wbs[i,4]]))
 
-  for i in range(len(roots[:,0])):
-      wbf.append(np.max([np.real(roots[i,0]),np.real(roots[i,1])]))
-      wbs0.append(np.max([wbs[i,0],wbs[i,1],wbs[i,4]]))
-      # wbs1.append(np.max([wbs[i,1],wbs[i,4]]))
-      wbs2.append(np.min([wbs[i,1],wbs[i,4]]))
+      wbs0 = np.array(wbs0)
+      # wbs1 = np.array(wbs1)
+      wbs2 = np.array(wbs2)
+      wbs = np.array([wbs0,wbs2])
 
-  wbs0 = np.array(wbs0)
-  # wbs1 = np.array(wbs1)
-  wbs2 = np.array(wbs2)
-  wbs = np.array([wbs0,wbs2])
-
-  wbf = np.array(wbf)
+      wbf = np.array(wbf)
 
   #omega_pe
 
@@ -304,14 +306,14 @@ if plot:
   K *= dl
   # print(wb)
 
-  # Z = np.log(np.abs(F))
-  Z = np.abs(F)
+  Z = np.log(np.abs(F))
+  # Z = np.abs(F)
 
 
   # Z = np.imag(F)
   print(np.max(Z))
   # Z /= np.max(Z)
-  Z /= 14492.03
+  # Z /= 14492.03
 
   # [8.05648594639641, 8.321326392686734, 9.116097355123907] vb = 0.1
   # [8.256258928788315, 8.352575352771161, 9.581354281956306] vb = 0.5
@@ -348,31 +350,33 @@ if plot:
     cbar = plt.colorbar()
     cbar.set_label('$\zeta$')
   else:
-    oRange = int(oRange/50)
+    oRange = oRange #int(oRange/50)
     plt.pcolor(K[:oRange,:], Omega[:oRange,:], Z[:oRange,:],shading='auto',vmin=np.min(Z[:oRange,:]),vmax=np.max(Z[:oRange,:]))
     #plt.pcolor(K, Omega, Z,shading='auto',vmin=np.min(Z),vmax=np.max(Z))
     #plt.imshow(K, Omega, Z)
     plt.colorbar()
 
-  if norm == "omega_pi":
-    plt.plot(kadl[1:], wbf, color='w', linestyle='-.', lw = 1.5, label='$\\tilde{\omega_{f}}$')
-    for i in range(2):
-        plt.plot(kadl[1:], wbs[i,:], linestyles[i], color = colors[i],lw = 1.0, label='$\\tilde{\omega_{s}}$(%d'%i+')')
-    plt.plot(kadl, wac, color='b', lw = 1.5,label="$\\tilde{\omega_{a}}$")
-    # plt.plot(ka, wb, '--w',label="Beam driven waves")
-    leg = ax.legend(loc='upper right',framealpha=0.5)
-    ax.set_xlabel('$\\tilde{k}$')
-    ax.set_ylabel('$\\tilde{\omega}$')
-    # ax.set_xlabel('$k \lambda_{D}$')
-    # ax.set_ylabel('$\omega/\omega_{pi}$')
 
-  else:
-    plt.plot(kadl, wl, '--w', label="langmuir wave")
-    plt.axhline(y=1.0, color='w', linestyle='--',label='$\omega_{pe}$')
-    leg = ax.legend(loc='upper right')
-    ax.set_xlabel('$k~[1/m]$')
-    ax.set_ylabel('$\omega/\omega_{pe}$')
+  if analytic:
+      if norm == "omega_pi":
+        plt.plot(kadl[1:], wbf, color='w', linestyle='-.', lw = 1.5, label='$\\tilde{\omega_{f}}$')
+        for i in range(2):
+            plt.plot(kadl[1:], wbs[i,:], linestyles[i], color = colors[i],lw = 1.0, label='$\\tilde{\omega_{s}}$(%d'%i+')')
+        plt.plot(kadl, wac, color='b', lw = 1.5,label="$\\tilde{\omega_{a}}$")
+        # plt.plot(ka, wb, '--w',label="Beam driven waves")
+        leg = ax.legend(loc='upper right',framealpha=0.5)
+        ax.set_xlabel('$\\tilde{k}$')
+        ax.set_ylabel('$\\tilde{\omega}$')
+        # ax.set_xlabel('$k \lambda_{D}$')
+        # ax.set_ylabel('$\omega/\omega_{pi}$')
 
-  ax.set_ylim([0, 2])
+      else:
+        plt.plot(kadl, wl, '--w', label="langmuir wave")
+        plt.axhline(y=1.0, color='w', linestyle='--',label='$\omega_{pe}$')
+        leg = ax.legend(loc='upper right')
+        ax.set_xlabel('$k~[1/m]$')
+        ax.set_ylabel('$\omega/\omega_{pe}$')
+
+  # ax.set_ylim([0, 2])
   plt.savefig(pjoin(savedir, norm+'_'+addlabel+'_disprel.png'),dpi=dpi)
   plt.show()
