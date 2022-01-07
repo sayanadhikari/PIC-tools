@@ -57,6 +57,7 @@ n = np.array([int(pat.findall(a)[-1]) for a in files])
 n += 1 # XOOPIC diagnostics is actually off by one
 t = n*dt
 Nt = len(t)
+# print(dt,n,t,Nt)
 
 if  os.path.exists(savedir) and os.path.exists(pjoin(savedir,'pro_data_file.npz')):
         print('processed data exists. Loading data ...')
@@ -121,9 +122,8 @@ if plot:
   F = F[:halflen[0],:halflen[1]]
 
   # Analytical ion-acoustic dispresion relation
-  ne = 1E13 #vars['Load'][0]['density']
+  ne = vars['Region']['Load'][0]['density']
   ni = ne
-
   eps0 = constants('electric constant')
   kb = constants('Boltzmann constant')
   me = constants('electron mass')
@@ -350,7 +350,7 @@ if plot:
     cbar = plt.colorbar()
     cbar.set_label('$\zeta$')
   else:
-    oRange = oRange #int(oRange/50)
+    oRange = int(oRange/5)
     plt.pcolor(K[:oRange,:], Omega[:oRange,:], Z[:oRange,:],shading='auto',vmin=np.min(Z[:oRange,:]),vmax=np.max(Z[:oRange,:]))
     #plt.pcolor(K, Omega, Z,shading='auto',vmin=np.min(Z),vmax=np.max(Z))
     #plt.imshow(K, Omega, Z)
@@ -377,6 +377,6 @@ if plot:
         ax.set_xlabel('$k~[1/m]$')
         ax.set_ylabel('$\omega/\omega_{pe}$')
 
-  # ax.set_ylim([0, 2])
+  ax.set_ylim([0, 2])
   plt.savefig(pjoin(savedir, norm+'_'+addlabel+'_disprel.png'),dpi=dpi)
   plt.show()
