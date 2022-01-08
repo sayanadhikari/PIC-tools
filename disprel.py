@@ -311,7 +311,7 @@ if plot:
 
 
   # Z = np.imag(F)
-  print(np.max(Z))
+  # print(np.max(Z))
   # Z /= np.max(Z)
   # Z /= 14492.03
 
@@ -346,14 +346,16 @@ if plot:
         oRange = int(oRange/10) #for bounded system in x
     else:
         oRange = int(oRange/200) #for periodic system in x
-    plt.pcolor(K[:oRange,:], Omega[:oRange,:], Z[:oRange,:],shading='auto',cmap = 'inferno',vmin=0*np.max(Z[:oRange,:]),vmax=0.02) # 0.05*np.max(Z[:oRange,:])) #np.min(Z[:oRange,:])
+    plt.pcolor(K[:oRange,:], Omega[:oRange,:], Z[:oRange,:],shading='auto',vmin=np.min(Z[:oRange,:]),vmax=np.max(Z[:oRange,:])) # 0.05*np.max(Z[:oRange,:])) #np.min(Z[:oRange,:])
     cbar = plt.colorbar()
     cbar.set_label('$\zeta$')
+    ax.set_ylabel('$\omega/\omega_{pi}$')
   else:
     oRange = int(oRange/5)
     plt.pcolor(K[:oRange,:], Omega[:oRange,:], Z[:oRange,:],shading='auto',vmin=np.min(Z[:oRange,:]),vmax=np.max(Z[:oRange,:]))
     #plt.pcolor(K, Omega, Z,shading='auto',vmin=np.min(Z),vmax=np.max(Z))
     #plt.imshow(K, Omega, Z)
+    ax.set_ylabel('$\omega/\omega_{pe}$')
     plt.colorbar()
 
 
@@ -378,5 +380,6 @@ if plot:
         ax.set_ylabel('$\omega/\omega_{pe}$')
 
   ax.set_ylim([0, 2])
+  ax.set_xlabel('$k \lambda_{D}$')
   plt.savefig(pjoin(savedir, norm+'_'+addlabel+'_disprel.png'),dpi=dpi)
   plt.show()
