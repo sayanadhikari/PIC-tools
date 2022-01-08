@@ -188,6 +188,7 @@ if plot:
   dl	= np.sqrt(eps0*kb*Te/(ni*e*e))
   dli	= np.sqrt(eps0*kb*Ti/(ni*e*e))
   print("wpi={}".format(wpi))
+  print("wpe={}".format(wpe))
   print("dl={}".format(dl))
   cia = np.sqrt(gamma_e*kb*Te/mi)
   ka = np.linspace(0, np.max(K), nK)
